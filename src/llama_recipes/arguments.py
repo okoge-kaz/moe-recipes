@@ -6,6 +6,7 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser("kotoba-recipes")
 
     parser = _add_fsdp_args(parser=parser)
+    parser = _add_zero_args(parser=parser)
     parser = _add_data_args(parser=parser)
     parser = _add_training_args(parser=parser)
     parser = _add_regularization_args(parser=parser)
@@ -58,6 +59,18 @@ def _add_fsdp_args(parser: argparse.ArgumentParser) -> argparse.ArgumentParser:
     group.add_argument(
         "--low-cpu-fsdp", action="store_true"
     )
+    group.add_argument(
+        "--no-meta-device", action="store_true"
+    )
+
+    return parser
+
+
+def _add_zero_args(parser: argparse.ArgumentParser) -> argparse.ArgumentParser:
+    group = parser.add_argument_group(title="deepspeed zero config")
+
+    group.add_argument("--use-zero", action="store_true")
+    group.add_argument("--zero-config", type=str)
 
     return parser
 

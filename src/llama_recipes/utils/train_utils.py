@@ -68,7 +68,7 @@ def train(
 
     # set model info
     if rank == 0 and args.wandb_name:
-        log_model_info(model)
+        log_model_info(model.module)
 
     iteration: int = args.iteration
     real_batch_size: int = args.micro_batch_size
@@ -145,7 +145,7 @@ def train(
                 log_wandb(
                     real_batch_size=real_batch_size,
                     real_seq_len=real_seq_len,
-                    model=model,
+                    model=model.module,
                     accumulation_loss=avg_loss,  # type: ignore
                     optimizer=optimizer,
                     iteration=iteration,

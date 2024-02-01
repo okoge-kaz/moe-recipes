@@ -3,18 +3,17 @@ import sys
 
 import torch
 import torch.distributed as torch_distributed
-from torch.distributed.fsdp.fully_sharded_data_parallel import CPUOffload  # type: ignore
 import torch.optim as optim
-from torch.distributed.fsdp import FullyShardedDataParallel as FSDP  # type: ignore
 from torch.optim.lr_scheduler import StepLR
-from peft import prepare_model_for_int8_training  # type: ignore
+from deepspeed.utils import set_z3_leaf_modules  # mixtral
+from transformers.models.mixtral.modeling_mixtral import MixtralSparseMoeBlock
+import deepspeed
+from accelerate import Accelerator
+from accelerate.utils import DeepSpeedPlugin
 import wandb
 
-from llama_recipes.policies import AnyPrecisionAdamW, apply_fsdp_checkpointing
 from llama_recipes.utils.train_utils import (
     clear_gpu_cache,
-    freeze_transformer_layers,
-    get_policies,
     print_model_size,
     setup_environ_flags,
     train,
@@ -64,7 +63,16 @@ def main() -> None:
     args.world_size = world_size
     args.gradient_accumulation_steps = args.global_batch_size // (args.micro_batch_size * world_size)
 
-    torch_distributed.init_process_group(backend="nccl", world_size=world_size, rank=rank)
+    # torch_distributed.init_process_group(backend="nccl", world_size=world_size, rank=rank)
+    deepPlugin = DeepSpeedPlugin(
+        hf_ds_config='scripts/abci/mixtral/mixtral-config.json',
+        zero3_init_flag=True
+    )
+    accelerator = Accelerator(
+        mixed_precision='bf16',
+        deepspeed_plugin=deepPlugin,
+        gradient_accumulation_steps=args.gradient_accumulation_steps
+    )
 
     # wandb setting
     if args.wandb_name is not None and is_rank_0():
@@ -94,61 +102,7 @@ def main() -> None:
         load_rng_state_dict(args.load)
         torch_distributed.barrier()
 
-    use_cache = False
-    model = get_model(
-        model_name=args.base_model, use_cache=use_cache
-    )
-
-    if args.load:
-        load_model_state_dict(model, args.load)  # type: ignore
-
-    if args.use_better_transformer:
-        try:
-            from optimum.bettertransformer import BetterTransformer
-
-            model = BetterTransformer.transform(model)  # type: ignore
-        except ImportError:
-            print("Module 'optimum' not found. Please install 'optimum' it before proceeding.")
-
-    print_model_size(model, args.base_model, rank)  # type: ignore
-
-    # Prepare the model for int8 training if quantization is enabled
-    if args.quantization:
-        model = prepare_model_for_int8_training(model)
-
-    # Convert the model to bfloat16 if fsdp and pure_bf16 is enabled
-    if args.bf16:
-        model.to(torch.bfloat16)  # type: ignore
-    elif args.fp16:
-        model.to(torch.float16)  # type: ignore
-
-    if args.use_freeze_layers:
-        print_rank_0("NOTE: freeze transformer layers")
-        freeze_transformer_layers(model=model, layer_ranges=args.freeze_layers)
-
-    mixed_precision_policy, wrapping_policy = get_policies(
-        rank=get_rank(),
-        model_name=args.base_model,
-    )
-
-    model = FSDP(
-        model,  # type: ignore
-        auto_wrap_policy=wrapping_policy,
-        cpu_offload=CPUOffload(offload_params=True) if args.fsdp_cpu_offload else None,
-        mixed_precision=mixed_precision_policy,
-        sharding_strategy=get_sharding_strategy(),
-        device_id=torch.cuda.current_device(),
-        limit_all_gathers=True,
-        sync_module_states=args.low_cpu_fsdp,
-        param_init_fn=lambda module: module.to_empty(  # type: ignore
-            device=torch.cuda.current_device(), recurse=False,  # type: ignore
-        )
-        if args.low_cpu_fsdp and rank != 0
-        else None,
-    )
-    if args.fsdp_activation_checkpointing:
-        apply_fsdp_checkpointing(model=model, model_name=args.base_model)
-
+    # dataset
     from llama_recipes.datasets.pretrain_dataset import build_train_valid_test_datasets
     from megatron_lm.megatron.data.data_samplers import build_pretraining_data_loader
 
@@ -166,26 +120,41 @@ def main() -> None:
         dataset=validation_dataset,
         consumed_samples=args.consumed_valid_samples,
     )
+    torch_distributed.barrier()
 
-    if args.bf16 and args.optimizer == "anyprecision":
-        optimizer = AnyPrecisionAdamW(
-            model.parameters(),  # type: ignore
-            lr=args.lr,
-            betas=(args.adam_beta1, args.adam_beta2),
-            eps=args.adam_eps,
-            momentum_dtype=torch.bfloat16,
-            variance_dtype=torch.bfloat16,
-            use_kahan_summation=False,
-            weight_decay=args.weight_decay,
-        )
-    else:
-        optimizer = optim.AdamW(
-            model.parameters(),  # type: ignore
-            lr=args.lr,
-            betas=(args.adam_beta1, args.adam_beta2),
-            eps=args.adam_eps,
-            weight_decay=args.weight_decay,
-        )
+    use_cache = False
+    model = get_model(
+        model_name=args.base_model, use_cache=use_cache
+    )
+    model.gradient_checkpointing_enable(  # type: ignore
+        gradient_checkpointing_kwargs={"use_reentrant": False}
+    )
+    model.enable_input_require_grads()  # type: ignore
+    print_rank_0("Gradient checkpointing enable")
+
+    if args.load:
+        load_model_state_dict(model, args.load)  # type: ignore
+
+    print_model_size(model, args.base_model, rank)  # type: ignore
+
+    # Convert the model to bfloat16 if fsdp and pure_bf16 is enabled
+    if args.bf16:
+        model.to(torch.bfloat16)  # type: ignore
+    elif args.fp16:
+        model.to(torch.float16)  # type: ignore
+
+    set_z3_leaf_modules(  # z3_leaf
+        model=model, leaf_module_classes=[MixtralSparseMoeBlock]  # type: ignore
+    )
+    model.train()  # type: ignore
+
+    optimizer = optim.AdamW(
+        model.parameters(),  # type: ignore
+        lr=args.lr,
+        betas=(args.adam_beta1, args.adam_beta2),
+        eps=args.adam_eps,
+        weight_decay=args.weight_decay,
+    )
 
     if args.load:
         load_optimizer_state_dict(model=model, optimizer=optimizer, path=args.load)  # type: ignore
@@ -203,6 +172,39 @@ def main() -> None:
 
     if args.load:
         load_scheduler_state_dict(scheduler, args.load)  # type: ignore
+
+    # deepspeed_config: dict = {
+    #     "bf16": {
+    #         "enabled": True
+    #     },
+    #     "zero_optimization": {
+    #         "stage": 3,
+    #         "overlap_comm": True,
+    #         "contiguous_gradients": True,
+    #         "sub_group_size": 1e9,
+    #         "reduce_bucket_size": "auto",
+    #         "stage3_prefetch_bucket_size": 0,
+    #         "stage3_param_persistence_threshold": "auto",
+    #         "stage3_max_live_parameters": 1e9,
+    #         "stage3_max_reuse_distance": 1e9,
+    #         "stage3_gather_16bit_weights_on_model_save": True
+    #     },
+    #     "train_micro_batch_size_per_gpu": args.micro_batch_size,
+    #     "offload_param_device": "cpu"
+    # }
+
+    # model, optimizer, _, scheduler = deepspeed.initialize(
+    #     model=model,  # type: ignore
+    #     optimizer=optimizer,
+    #     lr_scheduler=scheduler,  # type: ignore
+    #     config=deepspeed_config,
+    # )
+    model, optimizer, train_dataloader, scheduler = accelerator.prepare(
+        model,
+        optimizer,
+        train_dataloader,
+        scheduler
+    )
 
     # Start the training process
     train(

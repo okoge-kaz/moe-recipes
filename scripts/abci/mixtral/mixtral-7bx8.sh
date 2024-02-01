@@ -1,6 +1,6 @@
 #!/bin/bash
-#$ -l rt_AF=4
-#$ -l h_rt=0:7:30:00
+#$ -l rt_AF=16
+#$ -l h_rt=0:0:30:00
 #$ -j y
 #$ -o outputs/mixtral-7bx8/okazaki-cc/
 #$ -cwd
@@ -72,21 +72,21 @@ mkdir -p ${CHECKPOINT_SAVE_DIR}
 
 DATA_PATH=""
 
-# ja okazaki lab cc
-DATA_PATH="${DATA_PATH} 10445666171 /bb/llm/gaf51275/llama/datasets/mistral_original/Llama2Tokenizer-copy/okazaki_lab_cc_03_1500_split_0_text_document"
-DATA_PATH="${DATA_PATH} 10337410426 /bb/llm/gaf51275/llama/datasets/mistral_original/Llama2Tokenizer-copy/okazaki_lab_cc_03_1500_split_1_text_document"
-DATA_PATH="${DATA_PATH} 10142107979 /bb/llm/gaf51275/llama/datasets/mistral_original/Llama2Tokenizer-copy/okazaki_lab_cc_03_1500_split_2_text_document"
-DATA_PATH="${DATA_PATH} 16282348349 /bb/llm/gaf51275/llama/datasets/mistral_original/Llama2Tokenizer-copy/okazaki_lab_cc_03_1500_split_3_text_document"
-DATA_PATH="${DATA_PATH} 40298869962 /bb/llm/gaf51275/llama/datasets/mistral_original/Llama2Tokenizer-copy/okazaki_lab_cc_03_1500_split_4_text_document"
+# # ja okazaki lab cc
+# DATA_PATH="${DATA_PATH} 10445666171 /bb/llm/gaf51275/llama/datasets/mistral_original/Llama2Tokenizer-copy/okazaki_lab_cc_03_1500_split_0_text_document"
+# DATA_PATH="${DATA_PATH} 10337410426 /bb/llm/gaf51275/llama/datasets/mistral_original/Llama2Tokenizer-copy/okazaki_lab_cc_03_1500_split_1_text_document"
+# DATA_PATH="${DATA_PATH} 10142107979 /bb/llm/gaf51275/llama/datasets/mistral_original/Llama2Tokenizer-copy/okazaki_lab_cc_03_1500_split_2_text_document"
+# DATA_PATH="${DATA_PATH} 16282348349 /bb/llm/gaf51275/llama/datasets/mistral_original/Llama2Tokenizer-copy/okazaki_lab_cc_03_1500_split_3_text_document"
+# DATA_PATH="${DATA_PATH} 40298869962 /bb/llm/gaf51275/llama/datasets/mistral_original/Llama2Tokenizer-copy/okazaki_lab_cc_03_1500_split_4_text_document"
 
 # ja wikipedia
 DATA_PATH="${DATA_PATH} 2493597114 /bb/llm/gaf51275/llama/datasets/mistral_original/Llama2Tokenizer-copy/ja_wiki_merged_text_document"
 
-# en arxiv
-DATA_PATH="${DATA_PATH} 5000000000 /bb/llm/gaf51275/llama/datasets/mistral_original/Llama2Tokenizer-copy/arxiv_text_document"
+# # en arxiv
+# DATA_PATH="${DATA_PATH} 5000000000 /bb/llm/gaf51275/llama/datasets/mistral_original/Llama2Tokenizer-copy/arxiv_text_document"
 
-# en refinedweb
-DATA_PATH="${DATA_PATH} 5000000000 /bb/llm/gaf51275/llama/datasets/mistral_original/Llama2Tokenizer-copy/falcon_text_document"
+# # en refinedweb
+# DATA_PATH="${DATA_PATH} 5000000000 /bb/llm/gaf51275/llama/datasets/mistral_original/Llama2Tokenizer-copy/falcon_text_document"
 
 
 # job name
@@ -129,11 +129,9 @@ mpirun -np $NUM_GPUS \
   --base-model ${CHECKPOINT_DIR} \
   --save ${CHECKPOINT_SAVE_DIR} \
   --load ${CHECKPOINT_SAVE_DIR} \
-  --low-cpu-fsdp \
-  --sharding-strategy FULL_SHARD \
-  --checkpoint-type LOCAL_STATE_DICT \
-  --fsdp-activation-checkpointing \
-  --fsdp-cpu-offload \
+  --use-zero \
+  --zero-config "scripts/abci/mixtral/mixtral-config.json" \
+  --no-meta-device \
   --use-mpi \
   --wandb-entity "prj-jalm" \
   --wandb-project "Mixtral-8x7b" \
