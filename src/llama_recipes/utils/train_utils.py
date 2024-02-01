@@ -147,7 +147,7 @@ def train(
                     real_seq_len=real_seq_len,
                     model=model.module,
                     accumulation_loss=avg_loss,  # type: ignore
-                    optimizer=optimizer,
+                    optimizer=optimizer.optimizer,  # type: ignore
                     iteration=iteration,
                     gradient_accumulation_steps=gradient_accumulation_steps,
                     world_size=world_size,
@@ -156,19 +156,6 @@ def train(
             total_loss = 0.0
             iteration_start_time = time.perf_counter()
 
-        if (iteration) % args.eval_interval == 0:
-            # validation
-            eval_ppl, eval_loss = evaluation(
-                model=model,
-                eval_dataloader=eval_dataloader,  # type: ignore
-                local_rank=local_rank,
-                wandb_log=True,
-            )
-            if rank == 0:
-                wandb.log(
-                    {"evaluation/val_loss": eval_loss, "evaluation/val_ppl": eval_ppl},
-                    step=iteration,
-                )
         if (iteration) % args.save_interval == 0:
             # checkpoint save
             save_checkpoint(

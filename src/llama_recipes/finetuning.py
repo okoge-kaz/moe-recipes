@@ -65,7 +65,7 @@ def main() -> None:
 
     # torch_distributed.init_process_group(backend="nccl", world_size=world_size, rank=rank)
     deepPlugin = DeepSpeedPlugin(
-        hf_ds_config='scripts/abci/mixtral/mixtral-config.json',
+        hf_ds_config=args.zero_config,
         zero3_init_flag=True
     )
     accelerator = Accelerator(
@@ -132,9 +132,6 @@ def main() -> None:
     model.enable_input_require_grads()  # type: ignore
     print_rank_0("Gradient checkpointing enable")
 
-    if args.load:
-        load_model_state_dict(model, args.load)  # type: ignore
-
     print_model_size(model, args.base_model, rank)  # type: ignore
 
     # Convert the model to bfloat16 if fsdp and pure_bf16 is enabled
@@ -156,9 +153,6 @@ def main() -> None:
         weight_decay=args.weight_decay,
     )
 
-    if args.load:
-        load_optimizer_state_dict(model=model, optimizer=optimizer, path=args.load)  # type: ignore
-
     if args.lr_decay_style == "cosine":
         scheduler = WarmupCosineAnnealingLR(
             optimizer=optimizer,
@@ -173,38 +167,14 @@ def main() -> None:
     if args.load:
         load_scheduler_state_dict(scheduler, args.load)  # type: ignore
 
-    # deepspeed_config: dict = {
-    #     "bf16": {
-    #         "enabled": True
-    #     },
-    #     "zero_optimization": {
-    #         "stage": 3,
-    #         "overlap_comm": True,
-    #         "contiguous_gradients": True,
-    #         "sub_group_size": 1e9,
-    #         "reduce_bucket_size": "auto",
-    #         "stage3_prefetch_bucket_size": 0,
-    #         "stage3_param_persistence_threshold": "auto",
-    #         "stage3_max_live_parameters": 1e9,
-    #         "stage3_max_reuse_distance": 1e9,
-    #         "stage3_gather_16bit_weights_on_model_save": True
-    #     },
-    #     "train_micro_batch_size_per_gpu": args.micro_batch_size,
-    #     "offload_param_device": "cpu"
-    # }
-
-    # model, optimizer, _, scheduler = deepspeed.initialize(
-    #     model=model,  # type: ignore
-    #     optimizer=optimizer,
-    #     lr_scheduler=scheduler,  # type: ignore
-    #     config=deepspeed_config,
-    # )
     model, optimizer, train_dataloader, scheduler = accelerator.prepare(
         model,
         optimizer,
         train_dataloader,
         scheduler
     )
+    if args.load:
+        load_model_state_dict(model, args.load)  # type: ignore
 
     # Start the training process
     train(

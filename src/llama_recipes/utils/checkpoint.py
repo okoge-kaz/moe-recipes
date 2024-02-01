@@ -35,7 +35,7 @@ def get_optimizer_state_dict(model: FSDP, optimizer: torch.optim.Optimizer) -> d
     return state_dict
 
 
-def save_model_state_dict(model: FSDP, path: str) -> None:
+def save_model_state_dict(model, path: str) -> None:
     state_dict = get_model_state_dict(model)
     if torch_distributed.get_rank() == 0:
         print(f"Saving model state dict to {path}")
@@ -88,15 +88,17 @@ def save_rng_state(path: str) -> None:
         print(f"Saved RNG states to {path}")
 
 
+import deepspeed
+
+
 def save_checkpoint(
-    model: FSDP,
-    optimizer: torch.optim.Optimizer,
+    model: deepspeed.DeepSpeedEngine,
+    optimizer,
     scheduler: torch.optim.lr_scheduler.LRScheduler,
     path: str,
     iteration: int,
 ) -> None:
     torch_distributed.barrier()
-    args = get_args()
 
     checkpoint_path: str = get_checkpoint_name(path, iteration)
     os.makedirs(checkpoint_path, exist_ok=True)
@@ -104,16 +106,10 @@ def save_checkpoint(
         start = time.time()
         print(f"Saving checkpoint to {checkpoint_path}")
 
-    save_model_state_dict(
-        model=model,
-        path=f"{checkpoint_path}/model.pt",
+    model.save_checkpoint(
+        save_dir=f"{checkpoint_path}/",
+        tag="model_optimizer"
     )
-    if not args.no_save_optimizer_state:
-        save_optimizer_state_dict(
-            model=model,
-            optimizer=optimizer,
-            path=f"{checkpoint_path}/optimizer.pt",
-        )
 
     save_scheduler_state_dict(
         scheduler=scheduler,
@@ -131,7 +127,7 @@ def save_checkpoint(
         print(f"Saved checkpoint to {checkpoint_path}, took {time.time() - start:.2f}s")  # type: ignore
 
 
-def load_model_state_dict(model: torch.nn.Module, path: str) -> None:
+def load_model_state_dict(model: deepspeed.DeepSpeedEngine, path: str) -> None:
     latest_iteration: int = get_latest_iteration(path)
     if latest_iteration == 0:
         if torch_distributed.get_rank() == 0:
@@ -140,15 +136,13 @@ def load_model_state_dict(model: torch.nn.Module, path: str) -> None:
 
     latest_checkpoint_path: str = get_checkpoint_name(path, latest_iteration)
 
-    if torch_distributed.get_rank() == 0:
-        print(f"Loading model state dict from {latest_checkpoint_path}/model.pt")
-
-    state_dict = torch.load(f"{latest_checkpoint_path}/model.pt", map_location="cpu")
-    model.load_state_dict(state_dict)
-    del state_dict
+    model.load_checkpoint(
+        load_dir=f"{latest_checkpoint_path}",
+        tag="model_optimizer",
+    )
 
     if torch_distributed.get_rank() == 0:
-        print(f"Loaded model state dict from {latest_checkpoint_path}/model.pt")
+        print(f"Loaded model state dict from {latest_checkpoint_path}/model_optimizer")
 
 
 def load_optimizer_state_dict(model: FSDP, optimizer: torch.optim.Optimizer, path: str) -> None:
