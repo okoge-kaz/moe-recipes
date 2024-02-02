@@ -7,7 +7,6 @@ import torch.optim as optim
 from torch.optim.lr_scheduler import StepLR
 from deepspeed.utils import set_z3_leaf_modules  # mixtral
 from transformers.models.mixtral.modeling_mixtral import MixtralSparseMoeBlock
-import deepspeed
 from accelerate import Accelerator
 from accelerate.utils import DeepSpeedPlugin
 import wandb
@@ -66,10 +65,13 @@ def main() -> None:
     # torch_distributed.init_process_group(backend="nccl", world_size=world_size, rank=rank)
     deepPlugin = DeepSpeedPlugin(
         hf_ds_config=args.zero_config,
-        zero3_init_flag=True
+        zero3_init_flag=True,
+        gradient_accumulation_steps=args.gradient_accumulation_steps,
+        gradient_clipping=args.grad_clip_norm,
+        zero_stage=args.zero_stage,
     )
     accelerator = Accelerator(
-        mixed_precision='bf16',
+        mixed_precision='bf16' if args.bf16 else 'fp16',
         deepspeed_plugin=deepPlugin,
         gradient_accumulation_steps=args.gradient_accumulation_steps
     )
@@ -156,9 +158,9 @@ def main() -> None:
     if args.lr_decay_style == "cosine":
         scheduler = WarmupCosineAnnealingLR(
             optimizer=optimizer,
-            warmup_iterations=args.lr_warmup_iters,
-            decay_iterations=args.lr_decay_iters,
-            max_iterations=args.train_iters,
+            warmup_iterations=args.lr_warmup_iters * args.gradient_accumulation_steps,  # for accelerator
+            decay_iterations=args.lr_decay_iters * args.gradient_accumulation_steps,  # for accelerator
+            max_iterations=args.train_iters * args.gradient_accumulation_steps,  # for accelerator
             eta_min=args.min_lr,
         )
     else:

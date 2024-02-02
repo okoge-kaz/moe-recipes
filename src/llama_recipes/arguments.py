@@ -71,6 +71,7 @@ def _add_zero_args(parser: argparse.ArgumentParser) -> argparse.ArgumentParser:
 
     group.add_argument("--use-zero", action="store_true")
     group.add_argument("--zero-config", type=str)
+    group.add_argument("--zero-stage", type=int, default=1)
 
     return parser
 

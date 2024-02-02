@@ -54,8 +54,8 @@ GLOBAL_BATCH_SIZE=1024
 TRAIN_STEPS=25000
 
 # optimizer config
-LR=2e-5
-MIN_LR=6.6e-7
+LR=1e-4
+MIN_LR=1e-5
 LR_WARMUP_STEPS=1000
 LR_DECAY_STEPS=25000
 WEIGHT_DECAY=0.1
@@ -131,6 +131,7 @@ mpirun -np $NUM_GPUS \
   --load ${CHECKPOINT_SAVE_DIR} \
   --use-zero \
   --zero-config "scripts/abci/mixtral/mixtral-config.json" \
+  --zero-stage 3 \
   --no-meta-device \
   --use-mpi \
   --wandb-entity "prj-jalm" \
