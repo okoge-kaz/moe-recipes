@@ -14,7 +14,7 @@ from llama_recipes.utils.wandb_utils import log_model_info, log_wandb
 from llama_recipes.utils.checkpoint import save_checkpoint, get_latest_iteration
 
 from typing import Optional, Any
-import wandb
+from accelerate import Accelerator
 from megatron_lm.megatron.global_vars import get_args, get_tokenizer
 
 
@@ -38,6 +38,7 @@ def train(
     optimizer: torch.optim.AdamW,
     lr_scheduler: torch.optim.lr_scheduler.LRScheduler,
     gradient_accumulation_steps: int,
+    accelerator: Accelerator,
     local_rank: Optional[int] = None,
     rank: Optional[int] = None,
 ) -> None:
@@ -58,9 +59,6 @@ def train(
     Returns: results dictionary containing average training and validation perplexity and loss
     """
     args = get_args()
-    # Create a gradient scaler for fp16
-    if args.fp16:
-        scaler = ShardedGradScaler()
 
     world_size = int(os.environ["WORLD_SIZE"])
     local_rank = local_rank if local_rank is not None else 0
@@ -108,33 +106,25 @@ def train(
                 loss: torch.Tensor = model(**batch).loss
             loss = loss / gradient_accumulation_steps
 
-            if args.fp16:
-                # if fp16 is enabled, use gradient scaler to handle gradient update
-                scaler.scale(loss).backward()  # type: ignore
-            else:
-                # regular back propagation when fp16 is not used
-                loss.backward()
+            # ref: https://github.com/huggingface/accelerate/blob/main/examples/nlp_example.py#L167
+            # doesn't work if use loss.backward()
+            accelerator.backward(loss)
 
             total_loss += loss.item()
 
-            # gradient clipping
-            if args.grad_clip_norm > 0:
-                clip_grad_norm_(model.parameters(), args.grad_clip_norm)
-            real_batch_size: int = batch["input_ids"].shape[0]
-            real_seq_len: int = batch["input_ids"].shape[1]
+        # gradient clipping
+        if args.grad_clip_norm > 0:
+            accelerator.clip_grad_norm_(model.parameters(), args.grad_clip_norm)
+        real_batch_size: int = batch["input_ids"].shape[0]  # type: ignore
+        real_seq_len: int = batch["input_ids"].shape[1]  # type: ignore
 
         # gradient accumulation end
         iteration += 1
         consumed_iters += 1
 
-        if args.fp16:
-            scaler.step(optimizer)  # type: ignore (= optimizer.step())
-            scaler.update()  # type: ignore
-        elif args.bf16:
-            optimizer.step()
-
-        optimizer.zero_grad()
+        optimizer.step()
         lr_scheduler.step()
+        optimizer.zero_grad()
 
         if args.wandb_name:
             avg_loss: torch.Tensor = torch.tensor(total_loss).to(local_rank)  # type: ignore

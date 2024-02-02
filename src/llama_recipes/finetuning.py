@@ -169,6 +169,7 @@ def main() -> None:
     if args.load:
         load_scheduler_state_dict(scheduler, args.load)  # type: ignore
 
+    # ref: https://github.com/microsoft/DeepSpeed/pull/5008#issuecomment-1910607845
     model, optimizer, train_dataloader, scheduler = accelerator.prepare(
         model,
         optimizer,
@@ -186,6 +187,7 @@ def main() -> None:
         optimizer=optimizer,  # type: ignore
         lr_scheduler=scheduler,
         gradient_accumulation_steps=args.gradient_accumulation_steps,
+        accelerator=accelerator,
         local_rank=get_local_rank(),
         rank=get_rank(),
     )
