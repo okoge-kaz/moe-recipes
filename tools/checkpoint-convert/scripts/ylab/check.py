@@ -54,3 +54,5 @@ for key, values in diffs.items():
         print(f"  converted 2 Value (Shape {values[1].shape}):\n{values[1]}")
     else:
         print(f"  {values[0]}")
+
+print("Done!")
