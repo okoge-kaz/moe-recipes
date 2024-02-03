@@ -1,6 +1,6 @@
 #!/bin/bash
-#$ -l rt_AF=4
-#$ -l h_rt=11:0:00:00
+#$ -l rt_AF=16
+#$ -l h_rt=12:0:00:00
 #$ -j y
 #$ -o outputs/mixtral-7bx8/okazaki-cc/
 #$ -cwd
@@ -49,13 +49,13 @@ SEQ_LENGTH=4096
 SLIDING_WINDOW_SIZE=4096
 DATA_PARALLEL_SIZE=$NUM_GPUS
 
-MICRO_BATCH_SIZE=1
+MICRO_BATCH_SIZE=2
 GLOBAL_BATCH_SIZE=1024
 TRAIN_STEPS=25000
 
 # optimizer config
-LR=1e-4
-MIN_LR=1e-5
+LR=2e-5
+MIN_LR=2e-6
 LR_WARMUP_STEPS=1000
 LR_DECAY_STEPS=25000
 WEIGHT_DECAY=0.1
@@ -64,7 +64,7 @@ GRAD_CLIP=1
 # checkpoint & tokenizer
 TOKENIZER_MODEL=/bb/llm/gaf51275/llama/huggingface-checkpoint/Mixtral-8x7B-v0.1/tokenizer.model
 CHECKPOINT_DIR=/bb/llm/gaf51275/llama/huggingface-checkpoint/Mixtral-8x7B-v0.1
-CHECKPOINT_SAVE_DIR="/bb/llm/gaf51275/llama/checkpoints/Mixtral-8x7b/okazaki-cc-lr_${LR}-minlr_${MIN_LR}_warmup_${LR_WARMUP_STEPS}_sliding_window_${SLIDING_WINDOW_SIZE}_test"
+CHECKPOINT_SAVE_DIR="/bb/llm/gaf51275/llama/checkpoints/Mixtral-8x7b/okazaki-cc-lr_${LR}-minlr_${MIN_LR}_warmup_${LR_WARMUP_STEPS}_sliding_window_${SLIDING_WINDOW_SIZE}"
 
 mkdir -p ${CHECKPOINT_SAVE_DIR}
 
@@ -121,7 +121,7 @@ mpirun -np $NUM_GPUS \
   --adam-beta1 0.9 \
   --adam-beta2 0.95 \
   --adam-eps 1e-6 \
-  --save-interval 500 \
+  --save-interval 250 \
   --eval-interval 100 \
   --eval-iters 10 \
   --bf16 \
