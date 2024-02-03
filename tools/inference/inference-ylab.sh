@@ -16,17 +16,21 @@ set -e
 source .env/bin/activate
 
 python tools/inference/inference-mixtral.py \
-  --model-path "/home/kazuki/hf_checkpoints/Mixtral-8x7B-v0.1" \
-  --tokenizer-path /home/kazuki/hf_checkpoints/Mixtral-8x7B-v0.1
+  --model-path /home/kazuki/hf_checkpoints/Mixtral-8x7B-v0.1 \
+  --tokenizer-path /home/kazuki/hf_checkpoints/Mixtral-8x7B-v0.1 \
+  --prompt "Tokyo is the capital of Japan."
 
 python tools/inference/inference-mixtral.py \
-  --model-path "/home/kazuki/hf_checkpoints/Mixtral-8x7B-v0.1" \
-  --tokenizer-path /home/kazuki/hf_checkpoints/Mixtral-8x7B-v0.1
+  --model-path /home/kazuki/hf_checkpoints/Mixtral-8x7B-v0.1 \
+  --tokenizer-path /home/kazuki/hf_checkpoints/Mixtral-8x7B-v0.1 \
+  --prompt "東京工業大学のキャンパスは"
 
 python tools/inference/inference-mixtral.py \
-  --model-path "/home/kazuki/converted_checkpoints/Mistral-8x7b/iter_0000020" \
-  --tokenizer-path /home/kazuki/hf_checkpoints/Mixtral-8x7B-v0.1
+  --model-path /home/kazuki/converted_checkpoints/Mistral-8x7b/iter_0000020 \
+  --tokenizer-path /home/kazuki/hf_checkpoints/Mixtral-8x7B-v0.1 \
+  --prompt "Tokyo is the capital of Japan."
 
 python tools/inference/inference-mixtral.py \
-  --model-path "/home/kazuki/converted_checkpoints/Mistral-8x7b/iter_0000020" \
-  --tokenizer-path /home/kazuki/hf_checkpoints/Mixtral-8x7B-v0.1
+  --model-path /home/kazuki/converted_checkpoints/Mistral-8x7b/iter_0000020 \
+  --tokenizer-path /home/kazuki/hf_checkpoints/Mixtral-8x7B-v0.1 \
+  --prompt "東京工業大学のキャンパスは"
