@@ -11,7 +11,6 @@ module load nccl/cuda-11.7/2.14.3
 module load openmpi/4.0.5
 
 # python virtualenv
-cd /home/kazuki/llama/Megatron-LM
 source .env/bin/activate
 
 python tools/checkpoint-convert/scripts/ylab/check.py \
