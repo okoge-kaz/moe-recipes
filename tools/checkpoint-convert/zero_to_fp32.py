@@ -13,7 +13,6 @@
 # example: python zero_to_fp32.py . pytorch_model.bin
 
 import argparse
-from sentry_sdk import flush
 import torch
 import glob
 import math
@@ -149,9 +148,7 @@ def parse_optim_states(files, ds_checkpoint_dir):
         print(f"DEBUG: state_dict={state_dict}", flush=True)
         # immediately discard the potentially huge 2 optimizer states as we only care for fp32 master weights
         # and also handle the case where it was already removed by another helper script
-        if "optimizer_state_dict" in state_dict:
-            del state_dict["optimizer_state_dict"]["optimizer_state_dict"]
-            state_dict["optimizer_state_dict"]["optimizer_state_dict"] = None
+        state_dict["optimizer_state_dict"].pop("optimizer_state_dict", None)
         state_dicts.append(state_dict)
 
     if not ZERO_STAGE in state_dicts[0][OPTIMIZER_STATE_DICT]:  # noqa: E713
@@ -536,8 +533,9 @@ def convert_zero_checkpoint_to_fp32_state_dict(checkpoint_dir, output_file, tag=
     """
 
     state_dict = get_fp32_state_dict_from_zero_checkpoint(checkpoint_dir, tag)
-    print(f"Saving fp32 state dict to {output_file}")
+    print(f"Saving fp32 state dict to {output_file}", flush=True)
     torch.save(state_dict, output_file)
+    print("Done", flush=True)
 
 
 def load_state_dict_from_zero_checkpoint(model, checkpoint_dir, tag=None):
