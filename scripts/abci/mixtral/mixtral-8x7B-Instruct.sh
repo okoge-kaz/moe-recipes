@@ -64,7 +64,7 @@ GRAD_CLIP=1
 # checkpoint & tokenizer
 TOKENIZER_MODEL=/bb/llm/gaf51275/llama/huggingface-checkpoint/Mixtral-8x7B-Instruct-v0.1/tokenizer.model
 CHECKPOINT_DIR=/bb/llm/gaf51275/llama/huggingface-checkpoint/Mixtral-8x7B-Instruct-v0.1
-CHECKPOINT_SAVE_DIR="/bb/llm/gaf51275/llama/checkpoints/Mixtral-8x7B-Instruct-v0.1/okazaki-cc-lr_${LR}-minlr_${MIN_LR}_warmup_${LR_WARMUP_STEPS}_sliding_window_${SLIDING_WINDOW_SIZE}"
+CHECKPOINT_SAVE_DIR="/bb/llm/gaf51275/llama/checkpoints/Mixtral-8x7B-Instruct-v0.1/code-math-lr_${LR}-minlr_${MIN_LR}_warmup_${LR_WARMUP_STEPS}_seq_${SEQ_LENGTH}"
 
 mkdir -p ${CHECKPOINT_SAVE_DIR}
 
@@ -73,20 +73,29 @@ mkdir -p ${CHECKPOINT_SAVE_DIR}
 DATA_PATH=""
 
 # ja okazaki lab cc
-DATA_PATH="${DATA_PATH} 10445666171 /bb/llm/gaf51275/llama/datasets/mistral_original/Llama2Tokenizer-copy/okazaki_lab_cc_03_1500_split_0_text_document"
-DATA_PATH="${DATA_PATH} 10337410426 /bb/llm/gaf51275/llama/datasets/mistral_original/Llama2Tokenizer-copy/okazaki_lab_cc_03_1500_split_1_text_document"
-DATA_PATH="${DATA_PATH} 10142107979 /bb/llm/gaf51275/llama/datasets/mistral_original/Llama2Tokenizer-copy/okazaki_lab_cc_03_1500_split_2_text_document"
-DATA_PATH="${DATA_PATH} 16282348349 /bb/llm/gaf51275/llama/datasets/mistral_original/Llama2Tokenizer-copy/okazaki_lab_cc_03_1500_split_3_text_document"
-DATA_PATH="${DATA_PATH} 40298869962 /bb/llm/gaf51275/llama/datasets/mistral_original/Llama2Tokenizer-copy/okazaki_lab_cc_03_1500_split_4_text_document"
+DATA_PATH="${DATA_PATH} 19281582772 /bb/llm/gaf51275/llama/datasets/mistral_original/Llama2Tokenizer-copy/okazaki_lab_cc_03_1500_split_0_text_document"
+DATA_PATH="${DATA_PATH} 9185391237 /bb/llm/gaf51275/llama/datasets/mistral_original/Llama2Tokenizer-copy/okazaki_lab_cc_03_1500_split_1_text_document"
+DATA_PATH="${DATA_PATH} 10969986575 /bb/llm/gaf51275/llama/datasets/mistral_original/Llama2Tokenizer-copy/okazaki_lab_cc_03_1500_split_2_text_document"
+DATA_PATH="${DATA_PATH} 14467814828 /bb/llm/gaf51275/llama/datasets/mistral_original/Llama2Tokenizer-copy/okazaki_lab_cc_03_1500_split_3_text_document"
+DATA_PATH="${DATA_PATH} 33849760119 /bb/llm/gaf51275/llama/datasets/mistral_original/Llama2Tokenizer-copy/okazaki_lab_cc_03_1500_split_4_text_document"
 
 # ja wikipedia
-DATA_PATH="${DATA_PATH} 2493597114 /bb/llm/gaf51275/llama/datasets/mistral_original/Llama2Tokenizer-copy/ja_wiki_merged_text_document"
+DATA_PATH="${DATA_PATH} 2245464469 /bb/llm/gaf51275/llama/datasets/mistral_original/Llama2Tokenizer-copy/ja_wiki_merged_text_document"
 
 # en arxiv
 DATA_PATH="${DATA_PATH} 5000000000 /bb/llm/gaf51275/llama/datasets/mistral_original/Llama2Tokenizer-copy/arxiv_text_document"
 
 # en refinedweb
 DATA_PATH="${DATA_PATH} 5000000000 /bb/llm/gaf51275/llama/datasets/mistral_original/Llama2Tokenizer-copy/falcon_text_document"
+
+# algebraic stack
+DATA_PATH="${DATA_PATH} 1344918420 /bb/llm/gaf51275/llama/datasets/mistral_original/Llama2Tokenizer/starcoderdata_text_document"
+
+# The Vault
+DATA_PATH="${DATA_PATH} 3000000000 /bb/llm/gaf51275/llama/datasets/mistral_original/Llama2Tokenizer/The_Vault_text_text_document"
+
+# starcoder data(JA)
+DATA_PATH="${DATA_PATH} 2655081580 /bb/llm/gaf51275/llama/datasets/mistral_original/Llama2Tokenizer/starcoderdata_text_document"
 
 
 # job name
