@@ -2,7 +2,7 @@ import argparse
 
 import torch
 
-from transformers import AutoTokenizer, MixtralForCausalLM
+from transformers import AutoTokenizer, AutoModelForCausalLM
 
 
 parser = argparse.ArgumentParser(description="Generation")
@@ -17,9 +17,10 @@ print(f"Loading model {args.model_path}")
 tokenizer = AutoTokenizer.from_pretrained(
     pretrained_model_name_or_path=args.tokenizer_path,
 )
-model = MixtralForCausalLM.from_pretrained(
+model = AutoModelForCausalLM.from_pretrained(
     args.model_path,
-    device_map="auto", torch_dtype=torch.bfloat16
+    device_map="auto", torch_dtype=torch.bfloat16,
+    use_flash_attention_2=True,
 )
 
 input_ids: torch.Tensor = tokenizer.encode(  # type: ignore
@@ -29,7 +30,7 @@ input_ids: torch.Tensor = tokenizer.encode(  # type: ignore
 )
 outputs = model.generate(  # type: ignore
     input_ids.to(device=model.device),  # type: ignore
-    max_new_tokens=128,
+    max_new_tokens=512,
     temperature=0.99,
     top_p=0.95,
     do_sample=True,
