@@ -158,9 +158,9 @@ def main() -> None:
     if args.lr_decay_style == "cosine":
         scheduler = WarmupCosineAnnealingLR(
             optimizer=optimizer,
-            warmup_iterations=args.lr_warmup_iters * args.gradient_accumulation_steps,  # for accelerator
-            decay_iterations=args.lr_decay_iters * args.gradient_accumulation_steps,  # for accelerator
-            max_iterations=args.train_iters * args.gradient_accumulation_steps,  # for accelerator
+            warmup_iterations=args.lr_warmup_iters * world_size,  # lr_scheduler
+            decay_iterations=args.lr_decay_iters * world_size,  # lr_scheduler
+            max_iterations=args.train_iters * world_size,  # lr_scheduler
             eta_min=args.min_lr,
         )
     else:
