@@ -89,6 +89,8 @@ def get_model(
             # device_map="auto", (これがあるとダメ)
             attn_implementation="flash_attention_2",
             max_position_embeddings=args.seq_length,
+            # ref: https://huggingface.co/mistralai/Mixtral-8x7B-Instruct-v0.1/blob/main/config.json#L19
+            output_router_logits=args.output_router_logits,
             torch_dtype=torch.bfloat16 if args.bf16 else torch.float16,
             use_cache=use_cache,
         )
