@@ -1,5 +1,5 @@
 #!/bin/bash
-#YBATCH -r dgx-a100_8
+#YBATCH -r dgx-a100_4
 #SBATCH --job-name=convert
 #SBATCH --time=24:00:00
 #SBATCH --output outputs/checkpoint-convert/%j.out
@@ -16,8 +16,8 @@ set -e
 source .env/bin/activate
 
 
-start=20
-end=20
+start=4000
+end=4000
 increment=5000
 
 for ((i = start; i <= end; i += increment)); do

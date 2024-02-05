@@ -1,5 +1,5 @@
 #!/bin/bash
-#YBATCH -r dgx-a100_8
+#YBATCH -r dgx-a100_4
 #SBATCH --job-name=inference
 #SBATCH --time=24:00:00
 #SBATCH --output outputs/inference/%j.out
@@ -15,22 +15,20 @@ set -e
 # swich virtual env
 source .env/bin/activate
 
-python tools/inference/inference-mixtral.py \
-  --model-path /home/kazuki/hf_checkpoints/Mixtral-8x7B-v0.1 \
-  --tokenizer-path /home/kazuki/hf_checkpoints/Mixtral-8x7B-v0.1 \
-  --prompt "Tokyo is the capital of Japan."
+ITERATION=1500
+FORMATTED_ITERATION=$(printf "iter_%07d" $ITERATION)
 
 python tools/inference/inference-mixtral.py \
-  --model-path /home/kazuki/hf_checkpoints/Mixtral-8x7B-v0.1 \
+  --model-path /home/kazuki/converted_checkpoints/Mistral-8x7b/${FORMATTED_ITERATION} \
+  --tokenizer-path /home/kazuki/hf_checkpoints/Mixtral-8x7B-v0.1 \
+  --prompt "Tokyo is"
+
+python tools/inference/inference-mixtral.py \
+  --model-path /home/kazuki/converted_checkpoints/Mistral-8x7b/${FORMATTED_ITERATION} \
   --tokenizer-path /home/kazuki/hf_checkpoints/Mixtral-8x7B-v0.1 \
   --prompt "東京工業大学のキャンパスは"
 
 python tools/inference/inference-mixtral.py \
-  --model-path /home/kazuki/converted_checkpoints/Mistral-8x7b/iter_0000020 \
+  --model-path /home/kazuki/converted_checkpoints/Mistral-8x7b/${FORMATTED_ITERATION} \
   --tokenizer-path /home/kazuki/hf_checkpoints/Mixtral-8x7B-v0.1 \
-  --prompt "Tokyo is the capital of Japan."
-
-python tools/inference/inference-mixtral.py \
-  --model-path /home/kazuki/converted_checkpoints/Mistral-8x7b/iter_0000020 \
-  --tokenizer-path /home/kazuki/hf_checkpoints/Mixtral-8x7B-v0.1 \
-  --prompt "東京工業大学のキャンパスは"
+  --prompt "Pax Britannica "

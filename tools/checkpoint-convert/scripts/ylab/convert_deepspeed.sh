@@ -15,7 +15,7 @@ set -e
 # swich virtual env
 source .env/bin/activate
 
-ITERATION=20
+ITERATION=4000
 FORMATTED_ITERATION=$(printf "iter_%07d" $ITERATION)
 
 CHECK_POINT_DIR=/home/kazuki/checkpoints/Mistral-8x7b/${FORMATTED_ITERATION}
