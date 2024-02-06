@@ -268,6 +268,9 @@ def _add_training_args(parser: argparse.ArgumentParser) -> argparse.ArgumentPars
     # checkpoint
     group.add_argument("--no-save-optimizer-state", action="store_true")
 
+    # moe args
+    group.add_argument("--output-router-logits", action="store_true")
+
     return parser
 
 

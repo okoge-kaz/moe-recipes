@@ -17,6 +17,8 @@ from typing import Optional, Any
 from accelerate import Accelerator
 from megatron_lm.megatron.global_vars import get_args, get_tokenizer
 
+from transformers.modeling_outputs import MoeCausalLMOutputWithPast
+
 
 def cyclic_iter(iter):
     while True:
@@ -94,6 +96,7 @@ def train(
 
         model.train()
         total_loss: float = 0.0
+        total_load_balancing_loss: float = 0.0
 
         for _ in range(gradient_accumulation_steps):
 
@@ -103,14 +106,18 @@ def train(
                 batch[key] = batch[key].to(local_rank)
 
             with autocast():
-                loss: torch.Tensor = model(**batch).loss
-            loss = loss / gradient_accumulation_steps
+                output: MoeCausalLMOutputWithPast = model(**batch)
+                loss: torch.FloatTensor = output.loss  # type: ignore
+                load_balancing_loss: torch.FloatTensor = output.aux_loss  # type: ignore
+            loss = loss / gradient_accumulation_steps  # type: ignore
+            load_balancing_loss = load_balancing_loss / gradient_accumulation_steps  # type: ignore
 
             # ref: https://github.com/huggingface/accelerate/blob/main/examples/nlp_example.py#L167
             # doesn't work if use loss.backward()
             accelerator.backward(loss)
 
             total_loss += loss.item()
+            total_load_balancing_loss += load_balancing_loss.item()
 
         # gradient clipping
         if args.grad_clip_norm > 0:
@@ -137,6 +144,7 @@ def train(
                     real_seq_len=real_seq_len,
                     model=model.module,
                     accumulation_loss=avg_loss,  # type: ignore
+                    load_balancing_loss=total_load_balancing_loss,
                     optimizer=optimizer.optimizer,  # type: ignore
                     iteration=iteration,
                     gradient_accumulation_steps=gradient_accumulation_steps,
@@ -144,6 +152,7 @@ def train(
                     iteration_start_time=iteration_start_time,
                 )
             total_loss = 0.0
+            total_load_balancing_loss = 0.0
             iteration_start_time = time.perf_counter()
 
         if (iteration) % args.save_interval == 0:

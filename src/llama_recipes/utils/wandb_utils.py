@@ -30,6 +30,7 @@ def log_wandb(
     real_seq_len: int,
     model: torch.nn.Module,
     accumulation_loss: float,
+    load_balancing_loss: float,
     optimizer: torch.optim.Optimizer,
     iteration: int,
     gradient_accumulation_steps: int,
@@ -40,6 +41,7 @@ def log_wandb(
 
     # training info
     wandb_stats["training/loss"] = accumulation_loss
+    wandb_stats["training/load_balancing_loss"] = load_balancing_loss
     wandb_stats["training/perplexity"] = math.exp(accumulation_loss)
     # utils info
     batch_size: int = real_batch_size
@@ -149,7 +151,7 @@ def log_wandb(
     wandb.log(wandb_stats, step=iteration)
 
     print("------------------------------------------------------------------")
-    print(f"iteration: {iteration} , TFLOPS: {tflops}, Tokens per sec: {tokens_per_sec}, Loss: {accumulation_loss}")
+    print(f"iteration: {iteration} , TFLOPS: {tflops}, Tokens per sec: {tokens_per_sec}, Loss: {accumulation_loss}, load balancing loss: {load_balancing_loss}")
     print(
         "------------------------------------------------------------------",
         flush=True,
