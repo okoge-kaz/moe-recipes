@@ -73,7 +73,10 @@ def main() -> None:
     accelerator = Accelerator(
         mixed_precision='bf16' if args.bf16 else 'fp16',
         deepspeed_plugin=deepPlugin,
-        gradient_accumulation_steps=args.gradient_accumulation_steps
+        gradient_accumulation_steps=args.gradient_accumulation_steps,
+        step_scheduler_with_optimizer=False,
+        # ref: https://github.com/huggingface/accelerate/issues/2142
+        # ref: https://huggingface.co/docs/accelerate/concept_guides/performance#learning-rates
     )
 
     # wandb setting
@@ -158,9 +161,9 @@ def main() -> None:
     if args.lr_decay_style == "cosine":
         scheduler = WarmupCosineAnnealingLR(
             optimizer=optimizer,
-            warmup_iterations=args.lr_warmup_iters * world_size,  # lr_scheduler
-            decay_iterations=args.lr_decay_iters * world_size,  # lr_scheduler
-            max_iterations=args.train_iters * world_size,  # lr_scheduler
+            warmup_iterations=args.lr_warmup_iters,
+            decay_iterations=args.lr_decay_iters,
+            max_iterations=args.train_iters,
             eta_min=args.min_lr,
         )
     else:
@@ -175,7 +178,7 @@ def main() -> None:
         optimizer,
         train_dataloader,
         validation_dataloader,
-        scheduler
+        scheduler,
     )
     if args.load:
         load_model_state_dict(model, args.load)  # type: ignore
