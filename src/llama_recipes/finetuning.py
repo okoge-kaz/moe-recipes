@@ -18,7 +18,7 @@ from llama_recipes.utils.train_utils import (
     train,
 )
 from llama_recipes.optimizer import WarmupCosineAnnealingLR
-from llama_recipes.utils.random import set_seed
+from accelerate.utils import set_seed
 from llama_recipes.utils.distributed import (
     print_rank_0,
     is_rank_0,
@@ -38,6 +38,8 @@ from llama_recipes.utils.checkpoint import (
 from llama_recipes.arguments import parse_args
 from llama_recipes.get_fsdp import get_sharding_strategy
 from megatron_lm.megatron.global_vars import set_global_variables
+
+from deepspeed.accelerator import get_accelerator
 
 
 current_path: str = os.getcwd()
@@ -61,6 +63,8 @@ def main() -> None:
     args.rank = rank
     args.world_size = world_size
     args.gradient_accumulation_steps = args.global_batch_size // (args.micro_batch_size * world_size)
+
+    get_accelerator().set_device(get_local_rank())  # type: ignore
 
     # torch_distributed.init_process_group(backend="nccl", world_size=world_size, rank=rank)
     deepPlugin = DeepSpeedPlugin(
