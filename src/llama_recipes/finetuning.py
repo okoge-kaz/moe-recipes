@@ -52,7 +52,7 @@ def main() -> None:
     set_global_variables(args=args)
 
     # Set the seeds for reproducibility
-    set_seed(seed=args.seed, device_specific=True)
+    set_seed(seed=args.seed)
 
     # Distributed args.
     if args.use_mpi:
