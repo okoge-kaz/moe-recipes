@@ -1,6 +1,6 @@
 #!/bin/bash
 #$ -l rt_AF=16
-#$ -l h_rt=9:20:00:00
+#$ -l h_rt=9:00:00:00
 #$ -j y
 #$ -o outputs/mixtral-7bx8/okazaki-cc/
 #$ -cwd
@@ -89,16 +89,10 @@ DATA_PATH="${DATA_PATH} 4500000000 /bb/llm/gaf51275/llama/datasets/mistral_origi
 DATA_PATH="${DATA_PATH} 4500000000 /bb/llm/gaf51275/llama/datasets/mistral_original/Llama2Tokenizer/falcon_text_document"
 
 # algebraic stack
-DATA_PATH="${DATA_PATH} 3000000000 /bb/llm/gaf51275/llama/datasets/mistral_original/Llama2Tokenizer/algebraic_stack_text_document"
-
-# # starcoderdata
-# DATA_PATH="${DATA_PATH} 1344918420 /bb/llm/gaf51275/llama/datasets/mistral_original/Llama2Tokenizer/starcoderdata_text_document"
+DATA_PATH="${DATA_PATH} 5000000000 /bb/llm/gaf51275/llama/datasets/mistral_original/Llama2Tokenizer/algebraic_stack_text_document"
 
 # The Vault
-DATA_PATH="${DATA_PATH} 3000000000 /bb/llm/gaf51275/llama/datasets/mistral_original/Llama2Tokenizer/The_Vault_text_text_document"
-
-# # starcoder data(JA)
-# DATA_PATH="${DATA_PATH} 2655081580 /bb/llm/gaf51275/llama/datasets/mistral_original/Llama2Tokenizer/starcoderdata_ja_text_text_document"
+DATA_PATH="${DATA_PATH} 5000000000 /bb/llm/gaf51275/llama/datasets/mistral_original/Llama2Tokenizer/The_Vault_text_text_document"
 
 
 # job name
