@@ -178,7 +178,7 @@ def main() -> None:
         load_scheduler_state_dict(scheduler, args.load)  # type: ignore
 
     # ref: https://github.com/microsoft/DeepSpeed/pull/5008#issuecomment-1910607845
-    model, optimizer, train_dataloader, eval_dataloader, scheduler = accelerator.prepare(
+    model, optimizer, _, _, scheduler = accelerator.prepare(
         model,
         optimizer,
         train_dataloader,
@@ -192,7 +192,7 @@ def main() -> None:
     train(
         model=model,
         train_dataloader=train_dataloader,
-        eval_dataloader=eval_dataloader,
+        eval_dataloader=validation_dataloader,
         optimizer=optimizer,  # type: ignore
         lr_scheduler=scheduler,
         gradient_accumulation_steps=args.gradient_accumulation_steps,
