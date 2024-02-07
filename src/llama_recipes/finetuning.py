@@ -69,7 +69,7 @@ def main() -> None:
     # torch_distributed.init_process_group(backend="nccl", world_size=world_size, rank=rank)
     deepPlugin = DeepSpeedPlugin(
         hf_ds_config=args.zero_config,
-        zero3_init_flag=True,
+        zero3_init_flag=True if args.zero_stage == 3 else False,
         gradient_accumulation_steps=args.gradient_accumulation_steps,
         gradient_clipping=args.grad_clip_norm,
         zero_stage=args.zero_stage,
@@ -81,6 +81,7 @@ def main() -> None:
         step_scheduler_with_optimizer=False,
         # ref: https://github.com/huggingface/accelerate/issues/2142
         # ref: https://huggingface.co/docs/accelerate/concept_guides/performance#learning-rates
+        even_batches=False,
     )
 
     # wandb setting
@@ -104,7 +105,7 @@ def main() -> None:
 
     iteration: int = get_latest_iteration(args.load)
     args.iteration = iteration
-    torch.distributed.barrier()
+    torch_distributed.barrier()
 
     # random seed
     if args.load:
