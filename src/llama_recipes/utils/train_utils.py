@@ -76,8 +76,10 @@ def train(
     real_seq_len: int = args.seq_length
 
     # cyclic iter
-    train_dataloader = iter(cyclic_iter(train_dataloader))
-    eval_dataloader = iter(cyclic_iter(eval_dataloader))
+    train_dataloader = iter(cyclic_iter(train_dataloader)) if args.dataset_cyclic else iter(train_dataloader)
+    eval_dataloader = iter(cyclic_iter(eval_dataloader)) if args.dataset_cyclic else iter(eval_dataloader)
+    if args.dataset_cyclic:
+        print("CAUTION: dataloader cyclic feature enabled.")
 
     # skip batch
     skip_batches: list[tuple[int, int]] = []
