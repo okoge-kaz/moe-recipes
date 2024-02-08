@@ -1,6 +1,6 @@
 #!/bin/bash
 #$ -l rt_AF=16
-#$ -l h_rt=9:00:00:00
+#$ -l h_rt=8:10:00:00
 #$ -j y
 #$ -o outputs/mixtral-7bx8/okazaki-cc/
 #$ -cwd
@@ -64,7 +64,7 @@ GRAD_CLIP=1
 # checkpoint & tokenizer
 TOKENIZER_MODEL=/bb/llm/gaf51275/llama/huggingface-checkpoint/Mixtral-8x7B-Instruct-v0.1/tokenizer.model
 CHECKPOINT_DIR=/bb/llm/gaf51275/llama/huggingface-checkpoint/Mixtral-8x7B-Instruct-v0.1
-CHECKPOINT_SAVE_DIR="/bb/llm/gaf51275/llama/checkpoints/Mixtral-8x7B-Instruct-v0.1/code-math-lr_${LR}-minlr_${MIN_LR}_warmup_${LR_WARMUP_STEPS}_seq_${SEQ_LENGTH}_output_router_logits_algebraicstack_vault"
+CHECKPOINT_SAVE_DIR="/bb/llm/gaf51275/llama/checkpoints/Mixtral-8x7B-Instruct-v0.1/code-math-lr_${LR}-minlr_${MIN_LR}_warmup_${LR_WARMUP_STEPS}_seq_${SEQ_LENGTH}_output_router_logits_algebraicstack_vault_debug"
 
 mkdir -p ${CHECKPOINT_SAVE_DIR}
 

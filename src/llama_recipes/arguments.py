@@ -157,6 +157,7 @@ def _add_data_args(parser: argparse.ArgumentParser) -> argparse.ArgumentParser:
         '--vocab-extra-ids', type=int, default=0,
         help='Number of additional vocabulary tokens. They are used for span masking in the T5 model'
     )
+    group.add_argument("--dataset-cyclic", action="store_true")
 
     return parser
 
