@@ -17,15 +17,15 @@ source .env/bin/activate
 
 
 start=1000
-end=1000
-increment=5000
+end=2000
+increment=1000
 
 for ((i = start; i <= end; i += increment)); do
   ITERATION=$i
   FORMATTED_ITERATION=$(printf "iter_%07d" $ITERATION)
 
-  CHECK_POINT_PATH=/home/kazuki/checkpoints/Mixtral-8x7b-load-balance/${FORMATTED_ITERATION}/model.pt
-  OUTPUT_PATH=/home/kazuki/converted_checkpoints/Mixstral-8x7b-load-balance/${FORMATTED_ITERATION}
+  CHECK_POINT_PATH=/home/kazuki/checkpoints/Mixtral-8x7b/${FORMATTED_ITERATION}/model.pt
+  OUTPUT_PATH=/home/kazuki/converted_checkpoints/Mixtral-8x7b/${FORMATTED_ITERATION}
 
   echo "convert ${CHECK_POINT_PATH} to ${OUTPUT_PATH}"
 

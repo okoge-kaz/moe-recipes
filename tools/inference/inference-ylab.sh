@@ -15,20 +15,20 @@ set -e
 # swich virtual env
 source .env/bin/activate
 
-ITERATION=1500
+ITERATION=2000
 FORMATTED_ITERATION=$(printf "iter_%07d" $ITERATION)
 
 python tools/inference/inference-mixtral.py \
-  --model-path /home/kazuki/converted_checkpoints/Mistral-8x7b/${FORMATTED_ITERATION} \
+  --model-path /home/kazuki/converted_checkpoints/Mixtral-8x7b/${FORMATTED_ITERATION} \
   --tokenizer-path /home/kazuki/hf_checkpoints/Mixtral-8x7B-v0.1 \
   --prompt "Tokyo is"
 
 python tools/inference/inference-mixtral.py \
-  --model-path /home/kazuki/converted_checkpoints/Mistral-8x7b/${FORMATTED_ITERATION} \
+  --model-path /home/kazuki/converted_checkpoints/Mixtral-8x7b/${FORMATTED_ITERATION} \
   --tokenizer-path /home/kazuki/hf_checkpoints/Mixtral-8x7B-v0.1 \
   --prompt "東京工業大学のキャンパスは"
 
 python tools/inference/inference-mixtral.py \
-  --model-path /home/kazuki/converted_checkpoints/Mistral-8x7b/${FORMATTED_ITERATION} \
+  --model-path /home/kazuki/converted_checkpoints/Mixtral-8x7b/${FORMATTED_ITERATION} \
   --tokenizer-path /home/kazuki/hf_checkpoints/Mixtral-8x7B-v0.1 \
   --prompt "Pax Britannica "

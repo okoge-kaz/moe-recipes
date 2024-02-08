@@ -15,10 +15,10 @@ set -e
 # swich virtual env
 source .env/bin/activate
 
-ITERATION=1000
+ITERATION=2000
 FORMATTED_ITERATION=$(printf "iter_%07d" $ITERATION)
 
-CHECK_POINT_DIR=/home/kazuki/checkpoints/Mixtral-8x7b-load-balance/${FORMATTED_ITERATION}
+CHECK_POINT_DIR=/home/kazuki/checkpoints/Mixtral-8x7b/${FORMATTED_ITERATION}
 
 python tools/checkpoint-convert/zero_to_fp32.py \
   --checkpoint-dir $CHECK_POINT_DIR \
