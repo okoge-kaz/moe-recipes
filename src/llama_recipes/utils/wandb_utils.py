@@ -126,6 +126,9 @@ def log_wandb(
     vocab_size: int = model.config.vocab_size
     activation_func: str = model.config.hidden_act
     intermediate_size: int = model.config.intermediate_size
+    num_experts: int = 1
+    if hasattr(model.config, "num_experts_per_tok"):
+        num_experts: int = model.config.num_experts_per_tok
 
     activation_function_factor: int = 4  # GELU
     if activation_func == "silu":
@@ -136,7 +139,7 @@ def log_wandb(
 
     # tflops calculation
     flops_per_iteration: float = checkpoint_activations_factor * ((
-        (2 + (2 * 3) + activation_function_factor * (intermediate_size / hidden_size)) * batch_size * sequence_length * num_layers * (hidden_size**2)
+        (2 + (2 * 3) + activation_function_factor * (intermediate_size / hidden_size) * num_experts) * batch_size * sequence_length * num_layers * (hidden_size**2)
     ) + (
         ((  # Attention matrix & attention over values
             4 * batch_size * (sequence_length ** 2) * hidden_size
