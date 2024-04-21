@@ -1,10 +1,10 @@
 #!/bin/sh
 #$ -cwd
 #$ -l node_f=4
-#$ -l h_rt=24:00:00
+#$ -l h_rt=2:00:00
 #$ -o outputs/mixtral-8x7b-VE/$JOB_ID
 #$ -e outputs/mixtral-8x7b-VE/$JOB_ID
-#$ -p -3
+#$ -p -5
 
 # Load modules
 module load cuda/12.1.0
@@ -43,7 +43,7 @@ SLIDING_WINDOW_SIZE=4096
 DATA_PARALLEL_SIZE=$NUM_GPUS
 
 MICRO_BATCH_SIZE=8
-GLOBAL_BATCH_SIZE=1024
+GLOBAL_BATCH_SIZE=2048
 TRAIN_STEPS=25000
 
 # optimizer config
