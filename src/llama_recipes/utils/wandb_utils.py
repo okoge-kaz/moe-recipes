@@ -62,7 +62,7 @@ def log_wandb(
     optimizer_states_1: list[float] = [0.0] * 8
     optimizer_states_2: list[float] = [0.0] * 4
 
-    for name, local_state in model.named_local_hp_parameters():
+    for name, local_state in model.named_parameters():
         # docs: https://deepspeed.readthedocs.io/en/latest/zero3.html#debugging
         from deepspeed.utils import safe_get_local_fp32_param, safe_get_local_grad, safe_get_local_optimizer_state
 
