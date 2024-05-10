@@ -1,6 +1,7 @@
 import os
 import sys
 
+import accelerate
 import torch
 import torch.distributed as torch_distributed
 import torch.optim as optim
@@ -66,7 +67,9 @@ def main() -> None:
         step_scheduler_with_optimizer=False,
         # ref: https://github.com/huggingface/accelerate/issues/2142
         # ref: https://huggingface.co/docs/accelerate/concept_guides/performance#learning-rates
-        even_batches=False,
+        dataloader_config=accelerate.DataLoaderConfiguration(
+            even_batches=False,
+        ),
     )
 
     # wandb setting
@@ -118,11 +121,10 @@ def main() -> None:
         torch_distributed.barrier()
     elif args.instruction_tuning:
         from transformers import AutoTokenizer
+
         from llama_recipes.utils.instruction_tuning import get_instruction_tuning_dataloader
 
-        hf_tokenizer = AutoTokenizer.from_pretrained(
-            pretrained_model_name_or_path=args.hf_transformer_model_dir
-        )
+        hf_tokenizer = AutoTokenizer.from_pretrained(pretrained_model_name_or_path=args.hf_transformer_model_dir)
 
         if args.instruction_tuning:
             train_dataloader = get_instruction_tuning_dataloader(
@@ -141,6 +143,7 @@ def main() -> None:
             args.save_sampler_state = True
             if rank == 0:
                 from llama_recipes.utils.wandb_utils import update_iter_info
+
                 update_iter_info()
     else:
         raise ValueError("Invalid training mode")
