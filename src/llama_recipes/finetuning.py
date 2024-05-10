@@ -4,43 +4,28 @@ import sys
 import torch
 import torch.distributed as torch_distributed
 import torch.optim as optim
-from torch.optim.lr_scheduler import StepLR
-from deepspeed.utils import set_z3_leaf_modules  # mixtral
-from transformers.models.mixtral.modeling_mixtral import MixtralSparseMoeBlock
-from accelerate import Accelerator
-from accelerate.utils import DeepSpeedPlugin
 import wandb
-
-from llama_recipes.utils.train_utils import (
-    clear_gpu_cache,
-    print_model_size,
-    setup_environ_flags,
-    train,
-)
-from llama_recipes.optimizer import WarmupCosineAnnealingLR
-from accelerate.utils import set_seed
-from llama_recipes.utils.distributed import (
-    print_rank_0,
-    is_rank_0,
-    set_mpi_env,
-    get_rank,
-    get_local_rank,
-)
-from llama_recipes.get_models import get_model
-from llama_recipes.utils.checkpoint import (
-    load_model_state_dict,
-    load_optimizer_state_dict,
-    load_scheduler_state_dict,
-    load_rng_state_dict,
-    get_latest_iteration,
-)
+from accelerate import Accelerator
+from accelerate.utils import DeepSpeedPlugin, set_seed
+from deepspeed.accelerator import get_accelerator
+from deepspeed.utils import set_z3_leaf_modules  # mixtral
+from torch.optim.lr_scheduler import StepLR
+from transformers.models.mixtral.modeling_mixtral import MixtralSparseMoeBlock
 
 from llama_recipes.arguments import parse_args
 from llama_recipes.get_fsdp import get_sharding_strategy
+from llama_recipes.get_models import get_model
+from llama_recipes.optimizer import WarmupCosineAnnealingLR
+from llama_recipes.utils.checkpoint import (
+    get_latest_iteration,
+    load_model_state_dict,
+    load_optimizer_state_dict,
+    load_rng_state_dict,
+    load_scheduler_state_dict,
+)
+from llama_recipes.utils.distributed import get_local_rank, get_rank, is_rank_0, print_rank_0, set_mpi_env
+from llama_recipes.utils.train_utils import clear_gpu_cache, print_model_size, setup_environ_flags, train
 from megatron_lm.megatron.global_vars import set_global_variables
-
-from deepspeed.accelerator import get_accelerator
-
 
 current_path: str = os.getcwd()
 sys.path.append(f"{current_path}/llama-recipes/src/")
@@ -75,7 +60,7 @@ def main() -> None:
         zero_stage=args.zero_stage,
     )
     accelerator = Accelerator(
-        mixed_precision='bf16' if args.bf16 else 'fp16',
+        mixed_precision="bf16" if args.bf16 else "fp16",
         deepspeed_plugin=deepPlugin,
         gradient_accumulation_steps=args.gradient_accumulation_steps,
         step_scheduler_with_optimizer=False,
@@ -112,33 +97,57 @@ def main() -> None:
         load_rng_state_dict(args.load)
         torch_distributed.barrier()
 
-    # dataset
-    from llama_recipes.datasets.pretrain_dataset import build_train_valid_test_datasets
-    from megatron_lm.megatron.data.data_samplers import build_pretraining_data_loader
+    if args.continual_pretraining:
+        # dataset
+        from llama_recipes.datasets.pretrain_dataset import build_train_valid_test_datasets
+        from megatron_lm.megatron.data.data_samplers import build_pretraining_data_loader
 
-    train_dataset, validation_dataset, test_dataset = build_train_valid_test_datasets()
+        train_dataset, validation_dataset, test_dataset = build_train_valid_test_datasets()
 
-    args.consumed_train_samples = args.global_batch_size * args.iteration
-    args.consumed_valid_samples = args.global_batch_size * (
-        args.iteration // args.eval_interval) * args.eval_iters
+        args.consumed_train_samples = args.global_batch_size * args.iteration
+        args.consumed_valid_samples = args.global_batch_size * (args.iteration // args.eval_interval) * args.eval_iters
 
-    train_dataloader = build_pretraining_data_loader(
-        dataset=train_dataset,
-        consumed_samples=args.consumed_train_samples,
-    )
-    validation_dataloader = build_pretraining_data_loader(
-        dataset=validation_dataset,
-        consumed_samples=args.consumed_valid_samples,
-    )
-    torch_distributed.barrier()
+        train_dataloader = build_pretraining_data_loader(
+            dataset=train_dataset,
+            consumed_samples=args.consumed_train_samples,
+        )
+        validation_dataloader = build_pretraining_data_loader(
+            dataset=validation_dataset,
+            consumed_samples=args.consumed_valid_samples,
+        )
+        torch_distributed.barrier()
+    elif args.instruction_tuning:
+        from transformers import AutoTokenizer
+        from llama_recipes.utils.instruction_tuning import get_instruction_tuning_dataloader
+
+        hf_tokenizer = AutoTokenizer.from_pretrained(
+            pretrained_model_name_or_path=args.hf_transformer_model_dir
+        )
+
+        if args.instruction_tuning:
+            train_dataloader = get_instruction_tuning_dataloader(
+                tokenizer=hf_tokenizer,  # type: ignore
+                data_path=args.instruction_train_data_path,
+                train=True,
+            )
+            validation_dataloader = get_instruction_tuning_dataloader(
+                tokenizer=hf_tokenizer,  # type: ignore
+                data_path=args.instruction_valid_data_path,
+            )
+
+            args.train_iters = args.instruction_dataset_size // args.global_batch_size * args.epoch
+            args.lr_decay_iters = args.train_iters
+            args.lr_warmup_iters = args.lr_decay_iters // 10
+            args.save_sampler_state = True
+            if rank == 0:
+                from llama_recipes.utils.wandb_utils import update_iter_info
+                update_iter_info()
+    else:
+        raise ValueError("Invalid training mode")
 
     use_cache = False
-    model = get_model(
-        model_name=args.base_model, use_cache=use_cache
-    )
-    model.gradient_checkpointing_enable(  # type: ignore
-        gradient_checkpointing_kwargs={"use_reentrant": False}
-    )
+    model = get_model(model_name=args.base_model, use_cache=use_cache)
+    model.gradient_checkpointing_enable(gradient_checkpointing_kwargs={"use_reentrant": False})  # type: ignore
     model.enable_input_require_grads()  # type: ignore
     print_rank_0("Gradient checkpointing enable")
 

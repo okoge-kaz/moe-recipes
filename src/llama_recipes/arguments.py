@@ -272,6 +272,12 @@ def _add_training_args(parser: argparse.ArgumentParser) -> argparse.ArgumentPars
     # moe args
     group.add_argument("--output-router-logits", action="store_true")
 
+    # continual pretraining
+    group.add_argument("--continual-pretraining", action="store_true")
+
+    # instruction tuning
+    group.add_argument("--instruction-tuning", action="store_true")
+
     return parser
 
 
