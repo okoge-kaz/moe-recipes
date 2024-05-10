@@ -5,6 +5,7 @@ from typing import Any
 
 import torch
 import wandb
+from megatron_lm.megatron.global_vars import get_args
 
 
 def log_model_info(model: torch.nn.Module) -> None:
@@ -65,7 +66,7 @@ def log_wandb(
         from deepspeed.utils import safe_get_local_fp32_param, safe_get_local_grad, safe_get_local_optimizer_state
 
         local_hp_param = safe_get_local_fp32_param(local_state)
-        local_hp_grad = safe_get_local_grad(local_state)
+        local_hp_grad = safe_get_local_grad(local_state)  # noqa: F841
         local_exp_avg = safe_get_local_optimizer_state(local_state, "exp_avg")
         local_exp_avg_sq = safe_get_local_optimizer_state(local_state, "exp_avg_sq")
 
@@ -168,4 +169,24 @@ def log_wandb(
     print(
         "------------------------------------------------------------------",
         flush=True,
+    )
+
+
+def update_iter_info() -> None:
+    args = get_args()
+
+    print(
+        f"\ntrain_iters: {args.train_iters}, lr_decay_iters: {args.lr_decay_iters}, lr_warmup_iters: {args.lr_warmup_iters}\n",
+        flush=True,
+    )
+
+    wandb.config.update(
+        {
+            "train_iters": args.train_iters,
+            "lr_decay_iters": args.lr_decay_iters,
+            "lr_warmup_iters": args.lr_warmup_iters,
+            "instruction_dataset_size": args.instruction_dataset_size,
+            "save_sampler_state": args.save_sampler_state,
+        },
+        allow_val_change=True
     )
