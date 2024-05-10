@@ -1,9 +1,10 @@
-import torch
-import wandb
+import math
 import os
 import time
-import math
 from typing import Any
+
+import torch
+import wandb
 
 
 def log_model_info(model: torch.nn.Module) -> None:
@@ -59,43 +60,42 @@ def log_wandb(
     optimizer_states_1: list[float] = [0.0] * 8
     optimizer_states_2: list[float] = [0.0] * 4
 
-    for param_group in optimizer.param_groups:
-        for param in param_group["params"]:
-            # optimizer state が空の場合は logging しない
-            if not optimizer.state:
-                continue
-            if "exp_avg_sq" not in optimizer.state[param].keys():
-                continue
+    for name, local_state in model.named_local_hp_parameters():
+        # docs: https://deepspeed.readthedocs.io/en/latest/zero3.html#debugging
+        from deepspeed.utils import safe_get_local_fp32_param, safe_get_local_grad, safe_get_local_optimizer_state
 
-            optimizer_states_1[0] += (torch.norm(optimizer.state[param]["exp_avg_sq"]).item()) ** 2  # type: ignore
-            optimizer_states_1[1] += (
-                torch.norm(optimizer.state[param]["exp_avg_sq"].sqrt()).item()  # type: ignore
-            ) ** 2
-            optimizer_states_1[2] += (torch.norm(optimizer.state[param]["exp_avg"]).item()) ** 2  # type: ignore
-            optimizer_states_1[3] += (torch.norm(param).item()) ** 2  # type: ignore
-            optimizer_states_1[4] += torch.norm(optimizer.state[param]["exp_avg_sq"], p=1).item()  # type: ignore
-            optimizer_states_1[5] += torch.norm(optimizer.state[param]["exp_avg_sq"].sqrt(), p=1).item()  # type: ignore
-            optimizer_states_1[6] += torch.norm(optimizer.state[param]["exp_avg"], p=1).item()  # type: ignore
-            optimizer_states_1[7] += torch.norm(param, p=1).item()
-            optimizer_states_2[0] = max(
-                optimizer_states_2[0],  # type: ignore
-                abs(optimizer.state[param]["exp_avg_sq"].max().item()),  # type: ignore
-                abs(optimizer.state[param]["exp_avg_sq"].min().item()),  # type: ignore
-            )
-            optimizer_states_2[1] = max(
-                optimizer_states_2[1],
-                optimizer.state[param]["exp_avg_sq"].sqrt().abs_().max().item(),  # type: ignore
-            )
-            optimizer_states_2[2] = max(
-                optimizer_states_2[2],  # type: ignore
-                abs(optimizer.state[param]["exp_avg"].max().item()),  # type: ignore
-                abs(optimizer.state[param]["exp_avg"].min().item()),  # type: ignore
-            )
-            optimizer_states_2[3] = max(
-                optimizer_states_2[3],
-                abs(param.max().item()),  # type: ignore
-                abs(param.min().item()),  # type: ignore
-            )
+        local_hp_param = safe_get_local_fp32_param(local_state)
+        local_hp_grad = safe_get_local_grad(local_state)
+        local_exp_avg = safe_get_local_optimizer_state(local_state, "exp_avg")
+        local_exp_avg_sq = safe_get_local_optimizer_state(local_state, "exp_avg_sq")
+
+        optimizer_states_1[0] += (torch.norm(local_exp_avg_sq).item()) ** 2  # type: ignore
+        optimizer_states_1[1] += (torch.norm(local_exp_avg_sq.sqrt()).item()) ** 2  # type: ignore
+        optimizer_states_1[2] += (torch.norm(local_exp_avg).item()) ** 2  # type: ignore
+        optimizer_states_1[3] += (torch.norm(local_hp_param).item()) ** 2  # type: ignore
+        optimizer_states_1[4] += torch.norm(local_exp_avg_sq, p=1).item()  # type: ignore
+        optimizer_states_1[5] += torch.norm(local_exp_avg_sq.sqrt(), p=1).item()  # type: ignore
+        optimizer_states_1[6] += torch.norm(local_exp_avg, p=1).item()  # type: ignore
+        optimizer_states_1[7] += torch.norm(local_hp_param, p=1).item()
+        optimizer_states_2[0] = max(
+            optimizer_states_2[0],  # type: ignore
+            abs(local_exp_avg_sq.max().item()),  # type: ignore
+            abs(local_exp_avg_sq.min().item()),  # type: ignore
+        )
+        optimizer_states_2[1] = max(
+            optimizer_states_2[1],
+            local_exp_avg_sq.sqrt().abs_().max().item(),  # type: ignore
+        )
+        optimizer_states_2[2] = max(
+            optimizer_states_2[2],  # type: ignore
+            abs(local_exp_avg.max().item()),  # type: ignore
+            abs(local_exp_avg.min().item()),  # type: ignore
+        )
+        optimizer_states_2[3] = max(
+            optimizer_states_2[3],
+            abs(local_hp_param.max().item()),  # type: ignore
+            abs(local_hp_param.min().item()),  # type: ignore
+        )
     if optimizer.state:  # optimizer stateがない場合はloggingしない
         # rank:0でしかoptimizer stateをloggingしないので world sizeで割る必要はない
         wandb_stats["optimizer/variance_l2"] = optimizer_states_1[0] ** 0.5
@@ -138,15 +138,23 @@ def log_wandb(
     num_query_groups: int = model.config.num_attention_heads / model.config.num_key_value_heads
 
     # tflops calculation
-    flops_per_iteration: float = checkpoint_activations_factor * ((
-        (2 + (2 * 3) + activation_function_factor * (intermediate_size / hidden_size) * num_experts) * batch_size * sequence_length * num_layers * (hidden_size**2)
-    ) + (
-        ((  # Attention matrix & attention over values
-            4 * batch_size * (sequence_length ** 2) * hidden_size
-        ) / num_query_groups
-        ) +  # noqa: W504
-        # lm-head: logit layer
-        2 * batch_size * sequence_length * hidden_size * vocab_size)
+    flops_per_iteration: float = checkpoint_activations_factor * (
+        (
+            (2 + (2 * 3) + activation_function_factor * (intermediate_size / hidden_size) * num_experts)
+            * batch_size
+            * sequence_length
+            * num_layers
+            * (hidden_size**2)
+        )
+        + (
+            (
+                (4 * batch_size * (sequence_length**2) * hidden_size)  # Attention matrix & attention over values
+                / num_query_groups
+            )  # noqa: W504
+            +
+            # lm-head: logit layer
+            2 * batch_size * sequence_length * hidden_size * vocab_size
+        )
     )
     tflops: float = flops_per_iteration / (iteration_elapsed_time * (10**12))
     wandb_stats["stats/tflops"] = tflops
@@ -154,7 +162,9 @@ def log_wandb(
     wandb.log(wandb_stats, step=iteration)
 
     print("------------------------------------------------------------------")
-    print(f"iteration: {iteration} , TFLOPS: {tflops}, Tokens per sec: {tokens_per_sec}, Loss: {accumulation_loss}, load balancing loss: {load_balancing_loss}")
+    print(
+        f"iteration: {iteration} , TFLOPS: {tflops}, Tokens per sec: {tokens_per_sec}, Loss: {accumulation_loss}, load balancing loss: {load_balancing_loss}"
+    )
     print(
         "------------------------------------------------------------------",
         flush=True,
