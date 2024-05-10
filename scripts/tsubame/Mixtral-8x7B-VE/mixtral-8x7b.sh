@@ -7,11 +7,13 @@
 #$ -p -5
 
 # Load modules
-module load cuda/12.1.0
-module load nccl/2.20.5
-module load openmpi/5.0.2-gcc
+module use ~/modulefiles
+
+module load ylab/cuda/12.1
+module load ylab/cudnn/8.9.7
+module load ylab/nccl/cuda-12.1/2.18.3
+module load ylab/hpcx/2.17.1
 module load ninja/1.11.1
-module load ~/modulefiles/cudnn/9.0.0
 
 # swich virtual env
 source .env/bin/activate
@@ -114,6 +116,7 @@ mpirun -np $NUM_GPUS \
   --no-meta-device \
   --output-router-logits \
   --use-mpi \
-  --wandb-entity "prj-jalm" \
-  --wandb-project "Mixtral-8x7b-VE" \
+  --continual-pretraining \
+  --wandb-entity "okoge" \
+  --wandb-project "Mixtral-8x7b" \
   --wandb-name "${JOB_NAME}"
