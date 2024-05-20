@@ -112,6 +112,7 @@ def log_wandb(
         wandb_stats["optimizer/variance_sqrt_abs_max"] = optimizer_states_2[1]
         wandb_stats["optimizer/momentum_abs_max"] = optimizer_states_2[2]
         wandb_stats["optimizer/weight_abs_max"] = optimizer_states_2[3]
+        wandb_stats["utils/grad-norm"] = local_hp_grad.norm().item()  # type: ignore
 
     # stats
     iteration_elapsed_time = time.perf_counter() - iteration_start_time
