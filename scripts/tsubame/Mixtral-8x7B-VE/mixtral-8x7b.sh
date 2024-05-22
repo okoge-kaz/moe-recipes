@@ -1,19 +1,19 @@
-#!/bin/bash
-#$ -l rt_AF=4
-#$ -l h_rt=10:00:00
-#$ -j y
-#$ -o outputs/mixtral-8x7b/
+#!/bin/sh
 #$ -cwd
+#$ -l node_f=4
+#$ -l h_rt=0:30:00
+#$ -o outputs/mixtral-8x7b-VE/$JOB_ID
+#$ -e outputs/mixtral-8x7b-VE/$JOB_ID
+#$ -p -5
 
-# module load
-source /etc/profile.d/modules.sh
-module use /groups/gag51395/modules/modulefiles
+# Load modules
+module use ~/modulefiles
 
-module load cuda/12.1/12.1.1
-module load cudnn/cuda-12.1/9.0.0
-module load nccl/2.17/2.17.1-1
-module load hpcx/2.12
-module load gcc/11.4.0
+module load ylab/cuda/12.1
+module load ylab/cudnn/8.9.7
+module load ylab/nccl/cuda-12.1/2.18.3
+module load ylab/hpcx/2.17.1
+module load ninja/1.11.1
 
 # swich virtual env
 source .env/bin/activate
@@ -25,16 +25,8 @@ export MASTER_PORT=$((10000 + ($JOB_ID % 50000)))
 echo "MASTER_ADDR=${MASTER_ADDR}"
 
 # hostfile
-
-if [[ "$SGE_RESOURCE_TYPE" == "rt_F" ]]; then
-  export NUM_GPU_PER_NODE=4
-  NODE_TYPE="v100"
-elif [[ "$SGE_RESOURCE_TYPE" == "rt_AF" ]]; then
-  export NUM_GPU_PER_NODE=8
-  NODE_TYPE="a100"
-else
-  echo "Unrecognized SGE_RESOURCE_TYPE: $SGE_RESOURCE_TYPE"
-fi
+export NUM_GPU_PER_NODE=4
+NODE_TYPE="h100"
 
 NUM_NODES=$NHOSTS
 NUM_GPUS=$((${NUM_NODES} * ${NUM_GPU_PER_NODE}))
@@ -42,9 +34,9 @@ NUM_GPUS=$((${NUM_NODES} * ${NUM_GPU_PER_NODE}))
 mkdir -p ./hostfile
 
 HOSTFILE_NAME=./hostfile/hostfile_${JOB_ID}
-while read -r line; do
-  echo "${line} slots=${NUM_GPU_PER_NODE}"
-done <"$SGE_JOB_HOSTLIST" >"$HOSTFILE_NAME"
+while read -r hostname _ rest; do
+  echo "${hostname} slots=${NUM_GPU_PER_NODE}"
+done <"$PE_HOSTFILE" >"$HOSTFILE_NAME"
 
 # training config
 # Mixtral-8x7B https://huggingface.co/mistralai/Mixtral-8x7B-v0.1/blob/main/config.json
@@ -52,7 +44,7 @@ SEQ_LENGTH=4096
 SLIDING_WINDOW_SIZE=4096
 DATA_PARALLEL_SIZE=$NUM_GPUS
 
-MICRO_BATCH_SIZE=1
+MICRO_BATCH_SIZE=2
 GLOBAL_BATCH_SIZE=1024
 GRADIENTS_ACCUMULATION_STEPS=$((GLOBAL_BATCH_SIZE / MICRO_BATCH_SIZE / NUM_GPUS))
 
@@ -76,9 +68,9 @@ ADAMW_BETA2=0.95
 ADAMW_EPS=1e-5
 
 # checkpoint & tokenizer
-TOKENIZER_MODEL=/bb/llm/gaf51275/llama/huggingface-checkpoint/Mixtral-8x7B-Instruct-v0.1/tokenizer.model
-CHECKPOINT_DIR=/bb/llm/gaf51275/llama/huggingface-checkpoint/Mixtral-8x7B-Instruct-v0.1
-CHECKPOINT_SAVE_DIR="/bb/llm/gaf51275/checkpoints/Mixtral-8x7B-Instruct-v0.1/LR_${LR}-MIN-LR_${MIN_LR}_WARMUP_${LR_WARMUP_STEPS}_WD_${WEIGHT_DECAY}_GC_${GRAD_CLIP}"
+TOKENIZER_MODEL=/gs/bs/tge-gc24sp01/hf-checkpoints/Mixtral-8x7B-Instruct-v0.1-VE/tokenizer.model
+CHECKPOINT_DIR=/gs/bs/tge-gc24sp01/hf-checkpoints/Mixtral-8x7B-Instruct-v0.1-VE
+CHECKPOINT_SAVE_DIR="/gs/bs/tge-gc24sp01/checkpoints/Mixtral-8x7B-Instruct-v0.1-VE/code-math-lr_${LR}-minlr_${MIN_LR}_warmup_${LR_WARMUP_STEPS}_seq_${SEQ_LENGTH}"
 
 mkdir -p ${CHECKPOINT_SAVE_DIR}
 
@@ -87,29 +79,10 @@ mkdir -p ${CHECKPOINT_SAVE_DIR}
 DATA_PATH=""
 
 # ja okazaki lab cc
-DATA_PATH="${DATA_PATH} 7417203315 /groups/gag51395/datasets/binarized/mistral_original/Llama2Tokenizer/okazaki_lab_cc_03_1500_split_0_text_document"
-DATA_PATH="${DATA_PATH} 7340333648 /groups/gag51395/datasets/binarized/mistral_original/Llama2Tokenizer/okazaki_lab_cc_03_1500_split_1_text_document"
-DATA_PATH="${DATA_PATH} 8766459643 /groups/gag51395/datasets/binarized/mistral_original/Llama2Tokenizer/okazaki_lab_cc_03_1500_split_2_text_document"
-DATA_PATH="${DATA_PATH} 11561683685 /groups/gag51395/datasets/binarized/mistral_original/Llama2Tokenizer/okazaki_lab_cc_03_1500_split_3_text_document"
-DATA_PATH="${DATA_PATH} 27050402839 /groups/gag51395/datasets/binarized/mistral_original/Llama2Tokenizer/okazaki_lab_cc_03_1500_split_4_text_document"
-
-# ja wikipedia
-DATA_PATH="${DATA_PATH} 2245464469 /groups/gag51395/datasets/binarized/mistral_original/Llama2Tokenizer/ja_wiki_merged_text_document"
-
-# en arxiv
-DATA_PATH="${DATA_PATH} 14315663909 /groups/gag51395/datasets/binarized/mistral_original/Llama2Tokenizer/arxiv_text_document"
-
-# en refinedweb
-DATA_PATH="${DATA_PATH} 11302788492 /groups/gag51395/datasets/binarized/mistral_original/Llama2Tokenizer/falcon_text_document"
-
-# algebraic stack
-DATA_PATH="${DATA_PATH} 5000000000 /groups/gag51395/datasets/binarized/mistral_original/Llama2Tokenizer/algebraic_stack_text_document"
-
-# The Vault
-DATA_PATH="${DATA_PATH} 5000000000 /groups/gag51395/datasets/binarized/mistral_original/Llama2Tokenizer/The_Vault_text_text_document"
+DATA_PATH="${DATA_PATH} 7417203315 /gs/bs/tge-gc24sp01/datasets/mistral_original_Llama2Tokenizer/okazaki_lab_cc_03_1500_split_0_text_document"
 
 # deepspeed config
-DEEPSPEED_CONFIG="configs/mixtral-8x7b.json"
+DEEPSPEED_CONFIG="mixtral-8x7b.json"
 
 BF16_ENABLED=true
 DEEPSPEED_ZERO_STAGE=3
@@ -117,10 +90,10 @@ DEEPSPEED_ZERO_STAGE=3
 OVERLAP_COMMUNICATION=true
 CONTINOUS_GRADIENTS=true
 
-DEEPSPEED_SUB_GROUP_SIZE=1e9
-DEEPSPEED_REDUCE_BUCKET_SIZE="auto"
-DEEPSPEED_STAGE3_PREFETCH_BUCKET_SIZE=0
-DEEPSPEED_STAGE3_PARAM_PERSISTENCE_THRESHOLD="auto"
+DEEPSPEED_SUB_GROUP_SIZE=1e12
+DEEPSPEED_REDUCE_BUCKET_SIZE=1e9
+DEEPSPEED_STAGE3_PREFETCH_BUCKET_SIZE=5e8
+DEEPSPEED_STAGE3_PARAM_PERSISTENCE_THRESHOLD=1e6
 
 DEEPSPEED_STAGE3_MAX_LIVE_PARAMETERS=1e9
 DEEPSPEED_STAGE3_MAX_REUSE_DISTANCE=1e9
@@ -138,9 +111,9 @@ DEEPSPEED_CONGIG_CONTENT=$(
     "overlap_comm": $OVERLAP_COMMUNICATION,
     "contiguous_gradients": $CONTINOUS_GRADIENTS,
     "sub_group_size": $DEEPSPEED_SUB_GROUP_SIZE,
-    "reduce_bucket_size": "$DEEPSPEED_REDUCE_BUCKET_SIZE",
+    "reduce_bucket_size": $DEEPSPEED_REDUCE_BUCKET_SIZE,
     "stage3_prefetch_bucket_size": $DEEPSPEED_STAGE3_PREFETCH_BUCKET_SIZE,
-    "stage3_param_persistence_threshold": "$DEEPSPEED_STAGE3_PARAM_PERSISTENCE_THRESHOLD",
+    "stage3_param_persistence_threshold": $DEEPSPEED_STAGE3_PARAM_PERSISTENCE_THRESHOLD,
     "stage3_max_live_parameters": $DEEPSPEED_STAGE3_MAX_LIVE_PARAMETERS,
     "stage3_max_reuse_distance": $DEEPSPEED_STAGE3_MAX_REUSE_DISTANCE
   },
@@ -152,20 +125,11 @@ DEEPSPEED_CONGIG_CONTENT=$(
 EOF
 )
 
-mkdir -p ./configs
-
 # write deepspeed config file
 echo "$DEEPSPEED_CONGIG_CONTENT" >$DEEPSPEED_CONFIG
 
 # job name
-JOB_NAME="Mixtral-8x7B-Instruct-v0.1-NVE-ABCI-${NODE_TYPE}-${NUM_NODES}node-${NUM_GPUS}gpu-${SEQ_LENGTH}s-BS=${GLOBAL_BATCH_SIZE}-LR=${LR}-MINLR=${MIN_LR}-WARMUP=${LR_WARMUP_STEPS}-WD=${WEIGHT_DECAY}-GC=${GRAD_CLIP}"
-
-# CUTLASS build
-# git clone git@github.com:NVIDIA/cutlass.git
-# cd cutlass && mkdir -p build && cd build
-# module load cuda
-# module load cmake/3.29.0
-# cmake .. -DCUTLASS_NVCC_ARCHS=80 (for Ampere)
+JOB_NAME="Mixtral-8x7B-Instruct-v0.1-NVE-${NODE_TYPE}-${NUM_NODES}node-${NUM_GPUS}gpu-${SEQ_LENGTH}s-BS=${GLOBAL_BATCH_SIZE}-LR=${LR}-MINLR=${MIN_LR}-WARMUP=${LR_WARMUP_STEPS}-WD=${WEIGHT_DECAY}-GC=${GRAD_CLIP}"
 
 # run
 mpirun -np $NUM_GPUS \
@@ -174,9 +138,7 @@ mpirun -np $NUM_GPUS \
   -x MASTER_ADDR=$MASTER_ADDR \
   -x MASTER_PORT=$MASTER_PORT \
   -bind-to none \
-  -x LD_LIBRARY_PATH \
   -x PATH \
-  -x CUTLASS_PATH=/bb/llm/gaf51275/2024/cutlass \
   python examples/finetuning.py \
   --seq-length ${SEQ_LENGTH} \
   --sliding-window-size ${SLIDING_WINDOW_SIZE} \
