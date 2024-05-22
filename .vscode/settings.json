@@ -57,6 +57,7 @@
     "stockmark",
     "tflops",
     "tobytes",
+    "topk",
     "Xformer"
   ]
 }
