@@ -1,5 +1,8 @@
 # MoE Recipes
 
+This repository is not active. 
+[moe-recipes](https://github.com/rioyokotalab/moe-recipes) is now actively being developed in other [repository](https://github.com/rioyokotalab/moe-recipes).
+
 # Table of Contents
 
 1. [Installation](#installation)
